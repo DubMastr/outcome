@@ -1449,9 +1449,9 @@ Distributed under the Boost Software License, Version 1.0.
 
 #endif
 // Note the second line of this file must ALWAYS be the git SHA, third line ALWAYS the git SHA update time
-#define OUTCOME_PREVIOUS_COMMIT_REF d2cbd02cc3123b31c678569fe253f01019b8cda0
-#define OUTCOME_PREVIOUS_COMMIT_DATE "2017-11-02 00:08:04 +00:00"
-#define OUTCOME_PREVIOUS_COMMIT_UNIQUE d2cbd02c
+#define OUTCOME_PREVIOUS_COMMIT_REF 1f2d788c04c86d5b5bbf833aef564915d788403a
+#define OUTCOME_PREVIOUS_COMMIT_DATE "2017-11-05 01:30:09 +00:00"
+#define OUTCOME_PREVIOUS_COMMIT_UNIQUE 1f2d788c
 #define OUTCOME_V2 (QUICKCPPLIB_BIND_NAMESPACE_VERSION(outcome_v2, OUTCOME_PREVIOUS_COMMIT_UNIQUE))
 
 
@@ -1808,7 +1808,7 @@ _Check_return_ _Ret_writes_maybenull_(len) char **backtrace_symbols(_In_reads_(l
 #endif
 
 #endif
-#else
+#elif !defined(__ANDROID__)
 #include <execinfo.h>
 #endif
 #include <stdio.h>
@@ -1818,9 +1818,12 @@ namespace detail
 {
   QUICKCPPLIB_NORETURN inline void do_fatal_exit(const char *expr)
   {
+#ifndef __ANDROID__
     void *bt[16];
     size_t btlen = backtrace(bt, sizeof(bt) / sizeof(bt[0]));
+#endif
     fprintf(stderr, "FATAL: Outcome throws exception %s with exceptions disabled\n", expr);
+#ifndef __ANDROID__
     char **bts = backtrace_symbols(bt, btlen);
     if(bts)
     {
@@ -1828,6 +1831,7 @@ namespace detail
         fprintf(stderr, "  %s\n", bts[n]);
       free(bts);
     }
+#endif
     abort();
   }
 }
