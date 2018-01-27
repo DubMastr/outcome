@@ -34,11 +34,11 @@ namespace detail
 {
   template <class R, class EC, class NoValuePolicy> using select_result_impl = result_error_observers<result_value_observers<result_storage<R, EC, NoValuePolicy>, R, NoValuePolicy>, EC, NoValuePolicy>;
 
-  //! The assembled implementation type of `result<R, EC, NoValuePolicy>`.
+  //! The assembled implementation type of `result<R, S, NoValuePolicy>`.
   template <class R, class S, class NoValuePolicy>
   class result_final
-#ifdef DOXYGEN_IS_IN_THE_HOUSE
-  : public result_error_observers<result_value_observers<result_storage<R, EC, NoValuePolicy>, R, NoValuePolicy>, EC, NoValuePolicy>
+#if defined(DOXYGEN_IS_IN_THE_HOUSE)
+  : public result_error_observers<result_value_observers<result_storage<R, S, NoValuePolicy>, R, NoValuePolicy>, S, NoValuePolicy>
 #else
   : public select_result_impl<R, S, NoValuePolicy>
 #endif
@@ -103,7 +103,7 @@ namespace detail
     {
       if(this->_state._status & detail::status_have_value)
       {
-        return detail::safe_compare_equal(this->_state._value, o.value);  // NOLINT
+        return detail::safe_compare_equal(this->_state._value, o._value);  // NOLINT
       }
       return false;
     }
@@ -124,7 +124,7 @@ namespace detail
     \effects If a valid expression to do so, calls the `operator==` operation on the failure item returning true if equal. Otherwise returns false.
     \throws Any exception the `operator==` operation might throw.
     */
-    template <class T> constexpr bool operator==(const failure_type<T, void> &o) const noexcept(noexcept(detail::safe_compare_equal(std::declval<detail::devoid<S>>(), std::declval<detail::devoid<T>>()))) { return detail::safe_compare_equal(this->_error, o.error); }
+    template <class T> constexpr bool operator==(const failure_type<T, void> &o) const noexcept(noexcept(detail::safe_compare_equal(std::declval<detail::devoid<S>>(), std::declval<detail::devoid<T>>()))) { return detail::safe_compare_equal(this->_error, o.error()); }
     /*! True if not equal to the other result.
     \param o The other result to compare to.
 
@@ -160,7 +160,7 @@ namespace detail
     {
       if(this->_state._status & detail::status_have_value)
       {
-        return detail::safe_compare_notequal(this->_state._value, o.value);  // NOLINT
+        return detail::safe_compare_notequal(this->_state._value, o._value);  // NOLINT
       }
       return true;
     }
@@ -181,15 +181,43 @@ namespace detail
     \effects If a valid expression to do so, calls the `operator!=` operation on the failure item returning true if not equal. Otherwise returns false.
     \throws Any exception the `operator!=` operation might throw.
     */
-    template <class T> constexpr bool operator!=(const failure_type<T, void> &o) const noexcept(noexcept(detail::safe_compare_notequal(std::declval<detail::devoid<S>>(), std::declval<detail::devoid<T>>()))) { return detail::safe_compare_notequal(this->_error, o.error); }
+    template <class T> constexpr bool operator!=(const failure_type<T, void> &o) const noexcept(noexcept(detail::safe_compare_notequal(std::declval<detail::devoid<S>>(), std::declval<detail::devoid<T>>()))) { return detail::safe_compare_notequal(this->_error, o.error()); }
   };
-  //! Calls b == a
+  /*! True if the result is equal to the success type sugar.
+  \param a The success type sugar to compare.
+  \param b The result to compare.
+
+  \effects If a valid expression to do so, calls the `operator==` operation on the successful item returning true if equal. Otherwise returns false.
+  \remarks Implemented as `b == a`.
+  \throws Any exception the `operator==` operation might throw.
+  */
   template <class T, class U, class V, class W> constexpr inline bool operator==(const success_type<W> &a, const result_final<T, U, V> &b) noexcept(noexcept(b == a)) { return b == a; }
-  //! Calls b == a
+  /*! True if the result is equal to the failure type sugar.
+  \param a The failure type sugar to compare.
+  \param b The result to compare.
+
+  \effects If a valid expression to do so, calls the `operator==` operation on the failure item returning true if equal. Otherwise returns false.
+  \remarks Implemented as `b == a`.
+  \throws Any exception the `operator==` operation might throw.
+  */
   template <class T, class U, class V, class W> constexpr inline bool operator==(const failure_type<W, void> &a, const result_final<T, U, V> &b) noexcept(noexcept(b == a)) { return b == a; }
-  //! Calls b != a
+  /*! True if the result is not equal to the success type sugar.
+  \param a The success type sugar to compare.
+  \param b The result to compare.
+
+  \effects If a valid expression to do so, calls the `operator!=` operation on the successful item returning true if not equal. Otherwise returns false.
+  \remarks Implemented as `b != a`.
+  \throws Any exception the `operator!=` operation might throw.
+  */
   template <class T, class U, class V, class W> constexpr inline bool operator!=(const success_type<W> &a, const result_final<T, U, V> &b) noexcept(noexcept(b == a)) { return b != a; }
-  //! Calls b != a
+  /*! True if the result is not equal to the failure type sugar.
+  \param a The failure type sugar to compare.
+  \param b The result to compare.
+
+  \effects If a valid expression to do so, calls the `operator!=` operation on the failure item returning true if not equal. Otherwise returns false.
+  \remarks Implemented as `b != a`.
+  \throws Any exception the `operator!=` operation might throw.
+  */
   template <class T, class U, class V, class W> constexpr inline bool operator!=(const failure_type<W, void> &a, const result_final<T, U, V> &b) noexcept(noexcept(b == a)) { return b != a; }
 }  // namespace detail
 

@@ -34,6 +34,8 @@ OUTCOME_V2_NAMESPACE_BEGIN
 
 namespace detail
 {
+  template <class T> typename std::add_lvalue_reference<T>::type lvalueref() noexcept;
+
   template <class T> inline std::ostream &operator<<(std::ostream &s, const value_storage_trivial<T> &v)
   {
     s << v._status << " ";
@@ -91,27 +93,48 @@ namespace detail
   inline std::string safe_message(const std::error_code &ec) { return " (" + ec.message() + ")"; }
 }  // namespace detail
 
-//! Deserialise a result
-template <class R, class S, class P> inline std::istream &operator>>(std::istream &s, result<R, S, P> &v)
+/*! Deserialise a result. Format is `status_unsigned [value][error]`. Spare storage is preserved.
+\tparam 3
+\exclude
+\tparam 4
+\exclude
+
+\requires That `R` and `S` implement `operator>>`.
+*/
+OUTCOME_TEMPLATE(class R, class S, class P)
+OUTCOME_TREQUIRES(OUTCOME_TEXPR(detail::lvalueref<std::istream>() >> detail::lvalueref<R>()), OUTCOME_TEXPR(detail::lvalueref<std::istream>() >> detail::lvalueref<S>()))
+inline std::istream &operator>>(std::istream &s, result<R, S, P> &v)
 {
-  s >> v._state;
+  s >> v.__state();
   if(v.has_error())
   {
-    s >> v._error;
+    s >> v.assume_error();
   }
   return s;
 }
-//! Serialise a result
-template <class R, class S, class P> inline std::ostream &operator<<(std::ostream &s, const result<R, S, P> &v)
+/*! Serialise a result. Format is `status_unsigned [value][error]`. Spare storage is preserved.
+If you are printing to a human readable destination, use `print()` instead.
+\tparam 3
+\exclude
+\tparam 4
+\exclude
+
+\requires That `R` and `S` implement `operator<<`.
+*/
+OUTCOME_TEMPLATE(class R, class S, class P)
+OUTCOME_TREQUIRES(OUTCOME_TEXPR(detail::lvalueref<std::ostream>() << detail::lvalueref<R>()), OUTCOME_TEXPR(detail::lvalueref<std::ostream>() << detail::lvalueref<S>()))
+inline std::ostream &operator<<(std::ostream &s, const result<R, S, P> &v)
 {
-  s << v._state;
+  s << v.__state();
   if(v.has_error())
   {
-    s << v._error;
+    s << v.assume_error();
   }
   return s;
 }
-//! Debug print a result
+/*! Debug print a result into a form suitable for human reading. Format is `value|error`. If the
+error type is `error_code`, appends `" (ec.message())"` afterwards.
+*/
 template <class R, class S, class P> inline std::string print(const detail::result_final<R, S, P> &v)
 {
   std::stringstream s;
@@ -125,7 +148,9 @@ template <class R, class S, class P> inline std::string print(const detail::resu
   }
   return s.str();
 }
-//! Debug print a result
+/*! Debug print a result into a form suitable for human reading. Format is `(+void)|error`. If the
+error type is `error_code`, appends `" (ec.message())"` afterwards.
+*/
 template <class S, class P> inline std::string print(const detail::result_final<void, S, P> &v)
 {
   std::stringstream s;
@@ -139,7 +164,8 @@ template <class S, class P> inline std::string print(const detail::result_final<
   }
   return s.str();
 }
-//! Debug print a result
+/*! Debug print a result into a form suitable for human reading. Format is `value|(-void)`.
+*/
 template <class R, class P> inline std::string print(const detail::result_final<R, void, P> &v)
 {
   std::stringstream s;
@@ -153,7 +179,8 @@ template <class R, class P> inline std::string print(const detail::result_final<
   }
   return s.str();
 }
-//! Debug print a result
+/*! Debug print a result into a form suitable for human reading. Format is `(+void)|(-void)`.
+*/
 template <class P> inline std::string print(const detail::result_final<void, void, P> &v)
 {
   std::stringstream s;
@@ -168,37 +195,69 @@ template <class P> inline std::string print(const detail::result_final<void, voi
   return s.str();
 }
 
-//! Deserialise an outcome
-template <class R, class S, class P, class N> inline std::istream &operator>>(std::istream &s, outcome<R, S, P, N> &v)
+/*! Deserialise an outcome. Format is `status_unsigned [value][error][exception]`. Spare storage is preserved.
+\tparam 4
+\exclude
+\tparam 5
+\exclude
+\tparam 6
+\exclude
+
+\requires That `R`, `S` and `P` implement `operator>>`.
+*/
+OUTCOME_TEMPLATE(class R, class S, class P, class N)
+OUTCOME_TREQUIRES(OUTCOME_TEXPR(detail::lvalueref<std::istream>() >> detail::lvalueref<R>()), OUTCOME_TEXPR(detail::lvalueref<std::istream>() >> detail::lvalueref<S>()), OUTCOME_TEXPR(detail::lvalueref<std::istream>() >> detail::lvalueref<P>()))
+inline std::istream &operator>>(std::istream &s, outcome<R, S, P, N> &v)
 {
-  static_assert(!trait::has_exception_ptr_v<P>, "Cannot call operator>> on an outcome with an exception_ptr in it");
-  s >> v._state;
+  s >> v.__state();
   if(v.has_error())
   {
-    s >> v._error;
+    s >> v.assume_error();
   }
   if(v.has_exception())
   {
-    s >> v._ptr;
+    s >> v.assume_exception();
   }
   return s;
 }
-//! Serialise an outcome
-template <class R, class S, class P, class N> inline std::ostream &operator<<(std::ostream &s, const outcome<R, S, P, N> &v)
+/*! Serialise an outcome. Format is `status_unsigned [value][error][exception]`. Spare storage is preserved.
+If you are printing to a human readable destination, use `print()` instead.
+\tparam 4
+\exclude
+\tparam 5
+\exclude
+\tparam 6
+\exclude
+
+\requires That `R`, `S` and `P` implement `operator<<`.
+*/
+OUTCOME_TEMPLATE(class R, class S, class P, class N)
+OUTCOME_TREQUIRES(OUTCOME_TEXPR(detail::lvalueref<std::ostream>() << detail::lvalueref<R>()), OUTCOME_TEXPR(detail::lvalueref<std::ostream>() << detail::lvalueref<S>()), OUTCOME_TEXPR(detail::lvalueref<std::ostream>() << detail::lvalueref<P>()))
+inline std::ostream &operator<<(std::ostream &s, const outcome<R, S, P, N> &v)
 {
-  static_assert(!trait::has_exception_ptr_v<P>, "Cannot call operator<< on an outcome with an exception_ptr in it");
-  s << v._state;
+  s << v.__state();
   if(v.has_error())
   {
-    s << v._error;
+    s << v.assume_error();
   }
   if(v.has_exception())
   {
-    s << v._ptr;
+    s << v.assume_exception();
   }
   return s;
 }
-//! Debug print an outcome
+/*! Debug print an outcome into a form suitable for human reading. Format is one of:
+
+1. `value|error|exception`
+2. `{ error, exception }`
+
+If the error type is `error_code`, appends `" (ec.message())"` after the error.
+Exception type is printed as one of:
+
+1. `std::system_error code code(): what()`
+2. `std::exception: what()`
+3. `unknown exception`
+*/
 template <class R, class S, class P, class N> inline std::string print(const outcome<R, S, P, N> &v)
 {
   std::stringstream s;

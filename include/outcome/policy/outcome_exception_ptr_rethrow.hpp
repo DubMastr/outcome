@@ -38,7 +38,8 @@ namespace policy
   template <class T, class EC, class E> struct exception_ptr_rethrow : detail::base
   {
     /*! Performs a wide check of state, used in the value() functions
-    \effects If result does not have a value, if it has an error it rethrows that error via `std::rethrow_exception()`, else it throws `bad_result_access`.
+    \effects If outcome does not have a value, if it has an exception it rethrows that exception via `std::rethrow_exception()`,
+    if it has an error it rethrows that error via `std::rethrow_exception()`, else it throws `bad_outcome_access`.
     */
     template <class Impl> static constexpr void wide_value_check(Impl &&self)
     {
@@ -48,17 +49,17 @@ namespace policy
         {
           using Outcome = OUTCOME_V2_NAMESPACE::detail::rebind_type<outcome<T, EC, E, exception_ptr_rethrow>, decltype(self)>;
           Outcome _self = static_cast<Outcome>(self);  // NOLINT
-          detail::rethrow_exception<trait::has_exception_ptr_v<E>>{policy::exception_ptr(std::forward<Outcome>(_self)._ptr)};
+          detail::rethrow_exception<trait::has_exception_ptr_v<E>>{std::forward<Outcome>(_self)._ptr};
         }
         if((self._state._status & OUTCOME_V2_NAMESPACE::detail::status_have_error) != 0)
         {
-          detail::rethrow_exception<trait::has_exception_ptr_v<EC>>{policy::exception_ptr(std::forward<Impl>(self)._error)};
+          detail::rethrow_exception<trait::has_exception_ptr_v<EC>>{std::forward<Impl>(self)._error};
         }
         OUTCOME_THROW_EXCEPTION(bad_outcome_access("no value"));
       }
     }
-    /*! Performs a wide check of state, used in the value() functions
-    \effects If result does not have a value, if it has an error it throws that error, else it throws `bad_result_access`.
+    /*! Performs a wide check of state, used in the error() functions
+    \effects If outcome does not have an error, it throws `bad_outcome_access`.
     */
     template <class Impl> static constexpr void wide_error_check(Impl &&self)
     {

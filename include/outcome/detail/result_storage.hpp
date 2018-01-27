@@ -37,23 +37,42 @@ namespace detail
   /* True if type is the same or constructible. Works around a bug where clang + libstdc++
   pukes on std::is_constructible<filesystem::path, void> (this bug is fixed upstream).
   */
-  template <class T, class U, class... Args> struct _is_same_or_constructible
+  template <class T, class U> struct _is_explicitly_constructible
   {
-    static constexpr bool value = std::is_constructible<T, U, Args...>::value;
+    static constexpr bool value = std::is_constructible<T, U>::value;
   };
-  template <class T> struct _is_same_or_constructible<T, T>
+  template <class T> struct _is_explicitly_constructible<T, T>
   {
     static constexpr bool value = true;
   };
-  template <class T> struct _is_same_or_constructible<T, void>
+  template <class T> struct _is_explicitly_constructible<T, void>
   {
     static constexpr bool value = false;
   };
-  template <> struct _is_same_or_constructible<void, void>
+  template <> struct _is_explicitly_constructible<void, void>
   {
     static constexpr bool value = false;
   };
-  template <class T, class U, class... Args> static constexpr bool is_same_or_constructible = _is_same_or_constructible<T, U>::value;
+  template <class T, class U> static constexpr bool is_explicitly_constructible = _is_explicitly_constructible<T, U>::value;
+
+  template <class T, class U> struct _is_implicitly_constructible
+  {
+    static constexpr bool value = std::is_convertible<U, T>::value;
+  };
+  template <class T> struct _is_implicitly_constructible<T, T>
+  {
+    static constexpr bool value = true;
+  };
+  template <class T> struct _is_implicitly_constructible<T, void>
+  {
+    static constexpr bool value = false;
+  };
+  template <> struct _is_implicitly_constructible<void, void>
+  {
+    static constexpr bool value = false;
+  };
+  template <class T, class U> static constexpr bool is_implicitly_constructible = _is_implicitly_constructible<T, U>::value;
+
 // True if type is nothrow swappable
 #if !defined(STANDARDESE_IS_IN_THE_HOUSE) && (_HAS_CXX17 || __cplusplus >= 201700)
   template <class T> using is_nothrow_swappable = std::is_nothrow_swappable<T>;
@@ -68,7 +87,7 @@ namespace detail
     template <class T> struct is_nothrow_swappable<T, decltype(swap(ldeclval<T>(), ldeclval<T>()))> : std::integral_constant<bool, noexcept(swap(ldeclval<T>(), ldeclval<T>()))>
     {
     };
-  }
+  }  // namespace _is_nothrow_swappable
   template <class T> using is_nothrow_swappable = _is_nothrow_swappable::is_nothrow_swappable<T>;
 #endif
   OUTCOME_TEMPLATE(class T, class U)
@@ -179,9 +198,19 @@ namespace detail
     using _value_type = std::conditional_t<std::is_same<R, EC>::value, disable_in_place_value_type, R>;
     using _error_type = std::conditional_t<std::is_same<R, EC>::value, disable_in_place_error_type, EC>;
 
+#ifdef STANDARDESE_IS_IN_THE_HOUSE
+    detail::value_storage_trivial<_value_type> _state;
+#else
     detail::value_storage_select_impl<_value_type> _state;
+#endif
     detail::devoid<_error_type> _error;
 
+  public:
+    // Used by iostream support to access state
+    detail::value_storage_select_impl<_value_type> &__state() { return _state; }
+    const detail::value_storage_select_impl<_value_type> &__state() const { return _state; }
+
+  protected:
     result_storage() = default;
     result_storage(const result_storage &) = default;             // NOLINT
     result_storage(result_storage &&) = default;                  // NOLINT
@@ -204,7 +233,7 @@ namespace detail
     template <class... Args>
     constexpr explicit result_storage(in_place_type_t<_error_type> /*unused*/, Args &&... args) noexcept(std::is_nothrow_constructible<_error_type, Args...>::value)
         : _state{detail::status_have_error}
-        , _error{std::forward<Args>(args)...}
+        , _error(std::forward<Args>(args)...)
     {
       detail::_set_error_is_errno(_state, _error);
     }

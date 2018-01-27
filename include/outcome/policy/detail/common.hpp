@@ -27,6 +27,8 @@ http://www.boost.org/LICENSE_1_0.txt)
 
 #include "../../config.hpp"
 
+#include <cassert>
+
 OUTCOME_V2_NAMESPACE_EXPORT_BEGIN
 
 namespace policy
@@ -36,14 +38,16 @@ namespace policy
     struct base
     {
     private:
-      static
+      template <class Impl>
+      static constexpr
 #ifdef _MSC_VER
       __declspec(noreturn)
 #elif defined(__GNUC__) || defined(__clang__)
         __attribute__((noreturn))
 #endif
-      void _ub()
+      void _ub(Impl && /*unused*/)
       {
+        assert(false);
 #if defined(__GNUC__) || defined(__clang__)
         __builtin_unreachable();
 #endif
@@ -57,7 +61,7 @@ namespace policy
       {
         if((self._state._status & OUTCOME_V2_NAMESPACE::detail::status_have_value) == 0)
         {
-          _ub();
+          _ub(self);
         }
       }
       /*! Performs a narrow check of state, used in the assume_error() functions
@@ -67,7 +71,7 @@ namespace policy
       {
         if((self._state._status & OUTCOME_V2_NAMESPACE::detail::status_have_error) == 0)
         {
-          _ub();
+          _ub(self);
         }
       }
       /*! Performs a narrow check of state, used in the assume_exception() functions
@@ -77,7 +81,7 @@ namespace policy
       {
         if((self._state._status & OUTCOME_V2_NAMESPACE::detail::status_have_exception) == 0)
         {
-          _ub();
+          _ub(self);
         }
       }
     };

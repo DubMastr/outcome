@@ -25,6 +25,7 @@ http://www.boost.org/LICENSE_1_0.txt)
 #ifndef OUTCOME_RESULT_HPP
 #define OUTCOME_RESULT_HPP
 
+#include "convert.hpp"
 #include "detail/result_final.hpp"
 
 #include "policy/all_narrow.hpp"
@@ -33,18 +34,12 @@ http://www.boost.org/LICENSE_1_0.txt)
 #include "policy/terminate.hpp"
 #include "policy/throw_bad_result_access.hpp"
 
-OUTCOME_V2_NAMESPACE_EXPORT_BEGIN
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"  // Standardese markup confuses clang
+#endif
 
-//! Placeholder type to indicate there is no value type
-struct no_value_type
-{
-  no_value_type() = delete;
-};
-//! Placeholder type to indicate there is no error type
-struct no_error_type
-{
-  no_error_type() = delete;
-};
+OUTCOME_V2_NAMESPACE_EXPORT_BEGIN
 
 //! Namespace for policies
 namespace policy
@@ -79,36 +74,36 @@ namespace detail
     trait::has_error_code_v<error_type> || trait::has_exception_ptr_v<error_type>;
 
     // Predicate for the implicit constructors to be available
-    static constexpr bool implicit_constructors_enabled =                                                                                       //
-    ((error_is_common_error_type && std::is_same<bool, std::decay_t<value_type>>::value) || !is_same_or_constructible<value_type, error_type>)  //
-    &&!is_same_or_constructible<error_type, value_type>;
+    static constexpr bool implicit_constructors_enabled =                                                                                                  //
+    ((error_is_common_error_type && std::is_same<bool, std::decay_t<value_type>>::value) || !detail::is_implicitly_constructible<value_type, error_type>)  //
+    &&!detail::is_implicitly_constructible<error_type, value_type>;
 
     // Predicate for the value converting constructor to be available.
     template <class T>
     static constexpr bool enable_value_converting_constructor =  //
     implicit_constructors_enabled                                //
     && !is_in_place_type_t<std::decay_t<T>>::value               // not in place construction
-    && is_same_or_constructible<value_type, T> && !std::is_constructible<error_type, T>::value;
+    && detail::is_implicitly_constructible<value_type, T> && !detail::is_implicitly_constructible<error_type, T>;
 
     // Predicate for the error converting constructor to be available.
     template <class T>
     static constexpr bool enable_error_converting_constructor =  //
     implicit_constructors_enabled                                //
     && !is_in_place_type_t<std::decay_t<T>>::value               // not in place construction
-    && !std::is_constructible<value_type, T>::value && is_same_or_constructible<error_type, T>;
+    && !detail::is_implicitly_constructible<value_type, T> && detail::is_implicitly_constructible<error_type, T>;
 
     // Predicate for the error condition converting constructor to be available.
     template <class ErrorCondEnum>
-    static constexpr bool enable_error_condition_converting_constructor =                                                     //
-    !is_in_place_type_t<std::decay_t<ErrorCondEnum>>::value                                                                   // not in place construction
-    && std::is_error_condition_enum<ErrorCondEnum>::value                                                                     // is an error condition enum
-    && !std::is_constructible<value_type, ErrorCondEnum>::value && !std::is_constructible<error_type, ErrorCondEnum>::value;  // not constructible via any other means
+    static constexpr bool enable_error_condition_converting_constructor =                                                                   //
+    !is_in_place_type_t<std::decay_t<ErrorCondEnum>>::value                                                                                 // not in place construction
+    && std::is_error_condition_enum<ErrorCondEnum>::value                                                                                   // is an error condition enum
+    && !detail::is_implicitly_constructible<value_type, ErrorCondEnum> && !detail::is_implicitly_constructible<error_type, ErrorCondEnum>;  // not constructible via any other means
 
     // Predicate for the converting copy constructor from a compatible input to be available.
     template <class T, class U, class V>
-    static constexpr bool enable_compatible_conversion =                                                      //
-    (std::is_void<T>::value || is_same_or_constructible<value_type, typename result<T, U, V>::value_type>)    // if our value types are constructible
-    &&(std::is_void<U>::value || is_same_or_constructible<error_type, typename result<T, U, V>::error_type>)  // if our error types are constructible
+    static constexpr bool enable_compatible_conversion =                                                                 //
+    (std::is_void<T>::value || detail::is_explicitly_constructible<value_type, typename result<T, U, V>::value_type>)    // if our value types are constructible
+    &&(std::is_void<U>::value || detail::is_explicitly_constructible<error_type, typename result<T, U, V>::error_type>)  // if our error types are constructible
     ;
 
     // Predicate for the implicit converting inplace constructor from a compatible input to be available.
@@ -129,12 +124,12 @@ namespace detail
                                                                    && !std::is_same<choose_inplace_value_error_constructor<Args...>, disable_inplace_value_error_constructor>::value;
   };
 
-  template <class T, class U> constexpr inline const U &extract_value_from_success(const success_type<U> &v) { return v.value; }
-  template <class T, class U> constexpr inline U &&extract_value_from_success(success_type<U> &&v) { return std::move(v.value); }
+  template <class T, class U> constexpr inline const U &extract_value_from_success(const success_type<U> &v) { return v.value(); }
+  template <class T, class U> constexpr inline U &&extract_value_from_success(success_type<U> &&v) { return std::move(v).value(); }
   template <class T> constexpr inline T extract_value_from_success(const success_type<void> & /*unused*/) { return T{}; }
 
-  template <class T, class U, class V> constexpr inline const U &extract_error_from_failure(const failure_type<U, V> &v) { return v.error; }
-  template <class T, class U, class V> constexpr inline U &&extract_error_from_failure(failure_type<U, V> &&v) { return std::move(v.error); }
+  template <class T, class U, class V> constexpr inline const U &extract_error_from_failure(const failure_type<U, V> &v) { return v.error(); }
+  template <class T, class U, class V> constexpr inline U &&extract_error_from_failure(failure_type<U, V> &&v) { return std::move(v).error(); }
   template <class T, class V> constexpr inline T extract_error_from_failure(const failure_type<void, V> & /*unused*/) { return T{}; }
 
   template <class T> struct is_result : std::false_type
@@ -194,23 +189,27 @@ namespace hooks
 }  // namespace hooks
 
 /*! Used to return from functions either (i) a successful value (ii) a cause of failure. `constexpr` capable.
-\tparam R The optional type of the successful result (use `void` to disable).
-Cannot be a reference, a `in_place_type_t<>`, `success<>`, `failure<>`, an array, a function or non-destructible.
-\tparam S The optional type of the failure result (use `void` to disable). Must be either `void` or `DefaultConstructible`.
-Cannot be a reference, a `in_place_type_t<>`, `success<>`, `failure<>`, an array, a function or non-destructible.
+
+\tparam R The optional type of the successful result (use `void` to disable). Cannot be a reference, a `in_place_type_t<>`, `success<>`, `failure<>`, an array, a function or non-destructible.
+\tparam S The optional type of the failure result (use `void` to disable). Must be either `void` or `DefaultConstructible`. Cannot be a reference, a `in_place_type_t<>`, `success<>`, `failure<>`, an array, a function or non-destructible.
 \tparam NoValuePolicy Policy on how to interpret type `S` when a wide observation of a not present value occurs.
 
+Any `R` (`value_type`) state can be observed using the member functions `.value()` and `.assume_value()`. Any `S` (`error_type`) state can be
+observed using the member functions `.error()` and `.assume_error()`.
+
 `NoValuePolicy` defaults to a policy selected according to the characteristics of type `S`:
-  1. If `.value()` called when there is no `value_type` but there is an `error_type`:
-    - If `trait::has_error_code_v<S>` is true,
-    then `throw std::system_error(error()|make_error_code(error()))` [`policy::error_code_throw_as_system_error<S>`]
-    - If `trait::has_exception_ptr_v<S>`, then `std::rethrow_exception(error()|make_exception_ptr(error()))` [`policy::exception_ptr_rethrow<R, S, void>`]
-    - If `S` is `void`, call `std::terminate()` [`policy::terminate`]
-    - If `S` is none of the above, then it is undefined behaviour [`policy::all_narrow`]
-  2. If `.error()` called when there is no `error_type`:
-    - If `trait::has_error_code_v<S>`, or if `trait::has_exception_ptr_v<S>`,
-    or if `S` is `void`, do `throw bad_result_access()`
-    - If `S` is none of the above, then it is undefined behaviour [`policy::all_narrow`]
+
+1. If `.value()` called when there is no `value_type` but there is an `error_type`:
+   - If \verbatim {{<api "success_failure/#unexposed-entity-outcome-v2-xxx-trait-has-error-code-v" "trait::has_error_code_v<S>">}} \end is true,
+then `throw std::system_error(error()|make_error_code(error()))` [\verbatim {{<api "policies/result_error_code_throw_as_system_error" "policy::error_code_throw_as_system_error<S>">}} \end]
+   - If \verbatim {{<api "success_failure/#unexposed-entity-outcome-v2-xxx-trait-has-exception-ptr-v" "trait::has_exception_ptr_v<S>">}} \end is true, then `std::rethrow_exception(error()|make_exception_ptr(error()))`
+[\verbatim {{<api "policies/result_exception_ptr_rethrow/" "policy::exception_ptr_rethrow<R, S, void>">}} \end]
+   - If `S` is `void`, call `std::terminate()` [\verbatim {{<api "policies/terminate/" "policy::terminate">}} \end]
+   - If `S` is none of the above, then it is undefined behaviour [\verbatim {{<api "policies/all_narrow/" "policy::all_narrow">}} \end]
+2. If `.error()` called when there is no `error_type`:
+   - If `trait::has_error_code_v<S>`, or if `trait::has_exception_ptr_v<S>`,
+or if `S` is `void`, do `throw bad_result_access()`
+   - If `S` is none of the above, then it is undefined behaviour [`policy::all_narrow`]
 */
 template <class R, class S, class NoValuePolicy>                                                                                                                        //
 #if !defined(__GNUC__) || __GNUC__ >= 8                                                                                                                                 // GCC's constraints implementation is buggy
@@ -223,8 +222,6 @@ class OUTCOME_NODISCARD result : public detail::result_final<R, S, NoValuePolicy
   static_assert(std::is_void<S>::value || std::is_default_constructible<S>::value, "The type S must be void or default constructible");
 
   using base = detail::result_final<R, S, NoValuePolicy>;
-  template <class T, class U, class V> friend inline std::istream &operator>>(std::istream &s, result<T, U, V> &v);        // NOLINT
-  template <class T, class U, class V> friend inline std::ostream &operator<<(std::ostream &s, const result<T, U, V> &v);  // NOLINT
 
   struct value_converting_constructor_tag
   {
@@ -233,6 +230,12 @@ class OUTCOME_NODISCARD result : public detail::result_final<R, S, NoValuePolicy
   {
   };
   struct error_condition_converting_constructor_tag
+  {
+  };
+  struct explicit_valueornone_converting_constructor_tag
+  {
+  };
+  struct explicit_valueorerror_converting_constructor_tag
   {
   };
 
@@ -249,7 +252,7 @@ public:
   using error_type_if_enabled = typename base::_error_type;
 
   //! Used to rebind this result to a different result type.
-  template <class T, class U = S> using rebind = result<T, U>;
+  template <class T, class U = S, class V = policy::default_policy<T, U, void>> using rebind = result<T, U, V>;
 
 protected:
   //! Requirement predicates for result.
@@ -323,7 +326,7 @@ public:
   \param t The value from which to initialise the `value_type`.
 
   \effects Initialises the result with a `value_type`.
-  \requires Type T is constructible to `value_type`, is not constructible to `error_type`, and is not `result<R, S>` and not `in_place_type<>`.
+  \requires Type T is implicitly constructible to `value_type`, is not implicitly constructible to `error_type`, and is not `result<R, S>` and not `in_place_type<>`.
   \throws Any exception the construction of `value_type(T)` might throw.
   */
   OUTCOME_TEMPLATE(class T)
@@ -342,8 +345,8 @@ public:
   \param t The value from which to initialise the `error_type`.
 
   \effects Initialises the result with a `error_type`.
-  \requires Type T is constructible to `error_type`,
-  is not constructible to `value_type`, and is not `result<R, S>` and not `in_place_type<>`.
+  \requires Type T is implicitly constructible to `error_type`,
+  is not implicitly constructible to `value_type`, and is not `result<R, S>` and not `in_place_type<>`.
   \throws Any exception the construction of `error_type(T)` might throw.
   */
   OUTCOME_TEMPLATE(class T)
@@ -365,7 +368,7 @@ public:
 
   \effects Initialises the result with a `error_type` constructed via `make_error_code(t)`.
   \requires `std::is_error_condition_enum<ErrorCondEnum>` must be true,
-  `ErrorCondEnum` is not constructible to `value_type` nor `error_type`, and is not `result<R, S>` and not `in_place_type<>`;
+  `ErrorCondEnum` is not implicitly constructible to `value_type` nor `error_type`, and is not `result<R, S>` and not `in_place_type<>`;
   Finally, the expression `error_type(make_error_code(ErrorCondEnum()))` must be valid.
   \throws Any exception the construction of `error_type(make_error_code(t))` might throw.
   */
@@ -379,6 +382,28 @@ public:
     hook_result_construction(this, std::forward<ErrorCondEnum>(t));
   }
 
+  /*! Explicit converting constructor from a compatible `ValueOrError` type.
+  \tparam 1
+  \exclude
+  \tparam 2
+  \exclude
+  \param 1
+  \exclude
+  \param o The input for which a `convert::value_or_error<result, std::decay_t<T>>{}(std::forward<T>(o))` is available.
+
+  \effects Initialises the result with the contents of the compatible input.
+  \requires That `convert::value_or_error<result, std::decay_t<T>>{}(std::forward<T>(o))` be available. The
+  default implementation will consume `T`'s matching the `ValueOrError` concept type.
+  `ValueOrError` concept matches any type with a `value_type`,
+  an `error_type`, a `.value()`, an `.error()` and a `.has_value()`.
+  */
+  OUTCOME_TEMPLATE(class T)
+  OUTCOME_TREQUIRES(OUTCOME_TPRED(convert::value_or_error<result, std::decay_t<T>>::enable_result_inputs || !is_result_v<T>),  //
+                    OUTCOME_TEXPR(convert::value_or_error<result, std::decay_t<T>>{}(std::declval<T>())))
+  constexpr explicit result(T &&o, explicit_valueorerror_converting_constructor_tag /*unused*/ = explicit_valueorerror_converting_constructor_tag())  // NOLINT
+  : result{convert::value_or_error<result, std::decay_t<T>>{}(std::forward<T>(o))}
+  {
+  }
   /*! Explicit converting copy constructor from a compatible result type.
   \tparam 3
   \exclude
@@ -665,7 +690,7 @@ contract (i.e. undefined behaviour).
 */
 template <class R, class S = std::error_code> using unchecked = result<R, S, policy::all_narrow>;
 
-/*! A "checked" edition of `result<T, E>` which does no special handling of specific `E` types at all.
+/*! A "checked" edition of `result<T, E>` which resembles fairly closely a `std::expected<T, E>`.
 Attempting to access `T` when there is an `E` results in `bad_result_access<E>` being thrown. Nothing else.
 
 Note that this approximates the proposed `expected<T, E>` up for standardisation, see the FAQ for more
@@ -675,5 +700,9 @@ template <class R, class S = std::error_code> using checked = result<R, S, polic
 
 
 OUTCOME_V2_NAMESPACE_END
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #endif

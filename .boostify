@@ -1,17 +1,19 @@
 # Files to copy over
 include_files = [
     (r'include/(.*)', r'include/boost/\1'),
-    r'example/.*',
+    r'doc/src/.*',
     r'test/.*',
     r'\.clang-.*',
     r'\.gitattributes',
+    r'\index.html',
 ]
 exclude_files = [
     r'.*quickcpplib.*',
     r'.*\.natvis',
     r'.*\.vs',
     r'test/single-header-test.cpp',
-    r'test/constexprs/.*'
+    r'test/constexprs/.*',
+    r'doc/src/themes/.*'
 ]
 overlay_files = [
     (r'boostify', r''),

@@ -25,6 +25,9 @@ http://www.boost.org/LICENSE_1_0.txt)
 #ifndef OUTCOME_RESULT_H
 #define OUTCOME_RESULT_H
 
+/// \file
+/// \output_name result_c
+
 //! A C struct representation of `std::error_code`.
 struct cxx_error_code
 {
@@ -33,6 +36,7 @@ struct cxx_error_code
 };
 
 /*! Declares a C struct representation of `result<R, S>`.
+
 \param R The unique postfix for `struct result_##R##_##S`.
 \param RD The declaration for the `R` type.
 \param S The unique postfix for
@@ -46,6 +50,7 @@ struct cxx_error_code
     SD error;                                                                                                                                                                                                                                                                                                                  \
   }
 /*! Declares a C struct representation of `result<R, std::error_code>`.
+
 \param R The unique postfix for `struct result_##R##_##S`.
 \param RD The declaration for the `R` type.
 */
@@ -55,11 +60,11 @@ struct cxx_error_code
 //! A reference to a previously declared struct by `CXX_DECLARE_RESULT_EC(R, RD)`
 #define CXX_RESULT_EC(R) struct result_##R##_errorcode
 //! True if a result struct has a valid value
-#define CXX_RESULT_HAS_VALUE(r) (((r).flags & 1) == 1)
+#define CXX_RESULT_HAS_VALUE(r) (((r).flags & 1U) == 1U)
 //! True if a result struct has a valid error
-#define CXX_RESULT_HAS_ERROR(r) (((r).flags & 1) == 0)
+#define CXX_RESULT_HAS_ERROR(r) (((r).flags & 2U) == 2U)
 //! True if a result struct's `error` or `code` is an `errno` domain code suitable for setting `errno` with.
-#define CXX_RESULT_ERROR_IS_ERRNO(r) (((r).flags & (1 << 4)) == (1 << 4))
+#define CXX_RESULT_ERROR_IS_ERRNO(r) (((r).flags & (1U << 4U)) == (1U << 4U))
 //! C11 generic selecting a result struct's `error` or `code` integer member.
 #define CXX_RESULT_ERROR(r) _Generic((r).error, struct cxx_error_code : ((struct cxx_error_code *) &(r).error)->code, default : (r).error)
 //! Convenience macro setting `errno` to a result struct's `errno` compatible error if present, or `EAGAIN` if errored but incompatible.

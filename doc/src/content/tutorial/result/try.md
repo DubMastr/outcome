@@ -2,15 +2,16 @@
 title = "TRY operations"
 description = ""
 weight = 30
+tags = ["try"]
 +++
 
-In the implementation of function `print_half` we have seen the usage of the macro `OUTCOME_TRY`:
+In the implementation of function `print_half` we have seen the usage of the macro {{< api try OUTCOME_TRY >}}:
 
 ```c++
 OUTCOME_TRY (i, BigInt::fromString(text));
 ```
 
-This control statement is raughly equivalent to:
+This control statement is roughly equivalent to:
 
 ```c++
 auto&& __result = BigInt::fromString(text);
@@ -49,6 +50,7 @@ so you can test for its presence using `#ifdef OUTCOME_TRYX`.
 {{% /notice %}}
 
 Macro `OUTCOME_TRY` does two things:
+
 1. It extracts a `T` from `result<T>` (or `outcome<T>`).
 2. It declares a dependency between statements: If the "tried" statement fails, the next statement is not executed.
 
